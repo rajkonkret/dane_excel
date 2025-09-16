@@ -280,3 +280,11 @@ Przygotuj plik Excel z dwoma arkuszami: 1. Quiz Data - w komórkach F6:F35 umie�
 ---------------------------
 
 formułą do wklejenia do excela
+
+----------------
+="Widget A – " & SUMA.JEŻELI('Quiz Data'!$F$6:$F$35; "Widget A"; 'Quiz Data'!$G$6:$G$35)
+& ZNAK(10) &
+"Widget B – " & SUMA.JEŻELI('Quiz Data'!$F$6:$F$35; "Widget B"; 'Quiz Data'!$G$6:$G$35)
+& ZNAK(10) &
+"Widget C – " & SUMA.JEŻELI('Quiz Data'!$F$6:$F$35; "Widget C"; 'Quiz Data'!$G$6:$G$35)
+
