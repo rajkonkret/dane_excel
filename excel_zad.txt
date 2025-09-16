@@ -29,3 +29,247 @@
 ""
 )
 -----------------------
+=JEŻELI.BŁĄD(
+  INDEKS($D$6:$D$100;
+    AGREGUJ(
+      15; 6;
+      (WIERSZ($D$6:$D$100)-WIERSZ($D$6)+1) /
+      (
+        (
+          SUMA.WARUNKÓW(
+            $G$6:$G$100;
+            $D$6:$D$100;$D$6:$D$100;
+            $E$6:$E$100;
+            INDEKS($E$6:$E$100;
+              AGREGUJ(
+                15;6;
+                (WIERSZ($E$6:$E$100)-WIERSZ($E$6)+1) /
+                (PODAJ.POZYCJĘ($E$6:$E$100;$E$6:$E$100;0)=WIERSZ($E$6:$E$100)-WIERSZ($E$6)+1);
+                WIERSZ(A1)
+              )
+            )
+          )
+          =
+          MAX(
+            SUMA.WARUNKÓW(
+              $G$6:$G$100;
+              $D$6:$D$100;$D$6:$D$100;
+              $E$6:$E$100;
+              INDEKS($E$6:$E$100;
+                AGREGUJ(
+                  15;6;
+                  (WIERSZ($E$6:$E$100)-WIERSZ($E$6)+1) /
+                  (PODAJ.POZYCJĘ($E$6:$E$100;$E$6:$E$100;0)=WIERSZ($E$6:$E$100)-WIERSZ($E$6)+1);
+                  WIERSZ(A1)
+                )
+              )
+            )
+          )
+        )
+        *
+        (PODAJ.POZYCJĘ($D$6:$D$100;$D$6:$D$100;0)=WIERSZ($D$6:$D$100)-WIERSZ($D$6)+1)
+      );
+      1
+    )
+  );
+""
+)
+--------------------
+Option Explicit
+
+Public Sub FixPolishDatesToDDMMYYYY()
+    Dim ws As Worksheet
+    Dim firstRow As Long, colDates As Long
+    Dim lastRow As Long, lastCol As Long, outCol As Long
+    Dim r As Long
+    Dim srcVal As Variant, outDate As Variant
+    
+    Set ws = ActiveSheet          ' <- Możesz wskazać konkretny arkusz, np. ThisWorkbook.Sheets("Arkusz1")
+    firstRow = 6                  ' Dane startują w wierszu 6
+    colDates = 5                  ' Kolumna E = 5
+    
+    ' Ostatni wiersz patrząc po kolumnie z datami
+    lastRow = ws.Cells(ws.Rows.Count, colDates).End(xlUp).Row
+    If lastRow < firstRow Then
+        MsgBox "Brak danych w kolumnie E od wiersza 6.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Znajdź ostatnią używaną kolumnę w arkuszu
+    On Error Resume Next
+    lastCol = ws.Cells.Find(What:="*", After:=ws.Cells(1, 1), LookIn:=xlFormulas, _
+                            LookAt:=xlPart, SearchOrder:=xlByColumns, _
+                            SearchDirection:=xlPrevious, MatchCase:=False).Column
+    On Error GoTo 0
+    If lastCol = 0 Then lastCol = colDates  ' awaryjnie
+    
+    ' Dodaj nową kolumnę na samym końcu danych
+    outCol = lastCol + 1
+    ws.Cells(5, outCol).Value = "Data (dd/mm/rrrr)"
+    
+    ' Upewnij się, że nowa kolumna nie jest zamrożona jako tekst
+    ws.Columns(outCol).NumberFormat = "General"
+    
+    ' Przetwarzanie wiersz po wierszu
+    For r = firstRow To lastRow
+        srcVal = ws.Cells(r, colDates).Value
+        outDate = ParsePolishDate(srcVal)
+        
+        If IsDate(outDate) Then
+            ' --- Wariant A (zalecany): zapisz jako PRAWDZIWĄ datę i wymuś slashe w widoku
+            ws.Cells(r, outCol).Value = CDate(outDate)
+            
+            ' --- Wariant B (jako TEKST) – jeśli chcesz absolutnie zawsze mieć "dd/mm/yyyy":
+            ' ws.Cells(r, outCol).NumberFormat = "@"
+            ' ws.Cells(r, outCol).Value = Format$(CDate(outDate), "dd/mm/yyyy")
+        Else
+            ws.Cells(r, outCol).ClearContents
+        End If
+    Next r
+    
+    ' Ustaw format kolumny wynikowej: wymuś slashe w polskim Excelu
+    With ws.Columns(outCol)
+        .NumberFormat = "General"           ' wyczyść ewentualny tekst
+        .NumberFormatLocal = "dd\/mm\/rrrr" ' ważne: ucieczka slashy i polski token roku "rrrr"
+        .AutoFit
+    End With
+    
+    MsgBox "Gotowe. Poprawione daty wpisano do kolumny " & Split(Cells(1, outCol).Address(True, False), "$")(0) & ".", vbInformation
+End Sub
+
+' ==========================
+'  Pomocnicze funkcje
+' ==========================
+
+Private Function ParsePolishDate(ByVal v As Variant) As Variant
+    ' Zwraca Variant typu Date (jeśli uda się sparsować) albo Empty
+    Dim s As String
+    If IsEmpty(v) Or IsNull(v) Then Exit Function
+    If VarType(v) = vbDate Then
+        ParsePolishDate = CDate(v)
+        Exit Function
+    End If
+    
+    s = CStr(v)
+    s = Trim$(s)
+    If s = "" Then Exit Function
+    
+    s = LCase$(s)
+    s = ReplacePolishDiacritics(s)
+    s = ReplaceMonthWordsWithNumber(s)
+    s = NormalizeSeparatorsToDot(s)
+    
+    Dim d As Long, m As Long, y As Long
+    If ExtractDMYFromDotString(s, d, m, y) Then
+        On Error Resume Next
+        ParsePolishDate = DateSerial(y, m, d)
+        On Error GoTo 0
+    End If
+End Function
+
+Private Function ReplacePolishDiacritics(ByVal s As String) As String
+    s = Replace(s, "ą", "a")
+    s = Replace(s, "ć", "c")
+    s = Replace(s, "ę", "e")
+    s = Replace(s, "ł", "l")
+    s = Replace(s, "ń", "n")
+    s = Replace(s, "ó", "o")
+    s = Replace(s, "ś", "s")
+    s = Replace(s, "ż", "z")
+    s = Replace(s, "ź", "z")
+    ReplacePolishDiacritics = s
+End Function
+
+Private Function ReplaceMonthWordsWithNumber(ByVal s As String) As String
+    ' Zamień polskie nazwy/skrótowce miesięcy na numery
+    s = ReplaceWordLike(s, "stycz", "1"): s = ReplaceWordLike(s, "sty", "1")
+    s = ReplaceWordLike(s, "lut", "2"):   s = ReplaceWordLike(s, "luty", "2")
+    s = ReplaceWordLike(s, "marzec", "3"): s = ReplaceWordLike(s, "mar", "3")
+    s = ReplaceWordLike(s, "kwiec", "4"): s = ReplaceWordLike(s, "kwi", "4")
+    s = ReplaceWordLike(s, "maj", "5")
+    s = ReplaceWordLike(s, "czerwiec", "6"): s = ReplaceWordLike(s, "cze", "6")
+    s = ReplaceWordLike(s, "lipiec", "7"):   s = ReplaceWordLike(s, "lip", "7")
+    s = ReplaceWordLike(s, "sierp", "8"):    s = ReplaceWordLike(s, "sie", "8")
+    s = ReplaceWordLike(s, "wrzes", "9"):    s = ReplaceWordLike(s, "wrz", "9")
+    s = ReplaceWordLike(s, "pazdzier", "10"): s = ReplaceWordLike(s, "paz", "10")
+    s = ReplaceWordLike(s, "listop", "11"):   s = ReplaceWordLike(s, "lis", "11")
+    s = ReplaceWordLike(s, "grud", "12"):     s = ReplaceWordLike(s, "gru", "12")
+    ReplaceMonthWordsWithNumber = s
+End Function
+
+Private Function ReplaceWordLike(ByVal s As String, ByVal needle As String, ByVal monthNum As String) As String
+    ' Podmień "04.kwi.22" -> "04.4.22", "25.maj.22" -> "25.5.22" itd.
+    Dim pos As Long, out As String
+    out = s
+    pos = InStr(1, out, needle, vbTextCompare)
+    Do While pos > 0
+        out = Left$(out, pos - 1) & "." & monthNum & "." & Mid$(out, pos + Len(needle))
+        pos = InStr(pos + 1, out, needle, vbTextCompare)
+    Loop
+    ReplaceWordLike = out
+End Function
+
+Private Function NormalizeSeparatorsToDot(ByVal s As String) As String
+    ' Zamień / - , spacje itp. na kropki; zredukuj wielokrotne kropki
+    Dim out As String
+    out = s
+    out = Replace(out, "/", ".")
+    out = Replace(out, "-", ".")
+    out = Replace(out, ",", ".")
+    out = Replace(out, " ", ".")
+    Do While InStr(out, "..") > 0
+        out = Replace(out, "..", ".")
+    Loop
+    NormalizeSeparatorsToDot = Trim$(out)
+End Function
+
+Private Function ExtractDMYFromDotString(ByVal s As String, ByRef d As Long, ByRef m As Long, ByRef y As Long) As Boolean
+    ' Wyciąga trzy liczby z łańcucha z kropkami i rozpoznaje układ:
+    ' dd.mm.yyyy, dd.m.yy, yyyy.mm.dd, d.m.yy/yyy
+    Dim i As Long, c As String, cleaned As String
+    For i = 1 To Len(s)
+        c = Mid$(s, i, 1)
+        If (c >= "0" And c <= "9") Or c = "." Then
+            cleaned = cleaned & c
+        Else
+            cleaned = cleaned & "."
+        End If
+    Next i
+    Do While InStr(cleaned, "..") > 0
+        cleaned = Replace(cleaned, "..", ".")
+    Loop
+    cleaned = Trim$(cleaned)
+    If Left$(cleaned, 1) = "." Then cleaned = Mid$(cleaned, 2)
+    If Right$(cleaned, 1) = "." Then cleaned = Left$(cleaned, Len(cleaned) - 1)
+    
+    Dim parts() As String
+    parts = Split(cleaned, ".")
+    If UBound(parts) < 2 Then Exit Function
+    
+    Dim a As Long, b As Long, cnum As Long
+    a = Val(parts(0))
+    b = Val(parts(1))
+    cnum = Val(parts(2))
+    
+    ' Rozpoznanie układu
+    If Len(parts(0)) = 4 And a >= 1900 And a <= 2100 Then
+        ' yyyy.mm.dd
+        y = a: m = b: d = cnum
+    ElseIf Len(parts(2)) = 4 And cnum >= 1900 And cnum <= 2100 Then
+        ' dd.mm.yyyy
+        d = a: m = b: y = cnum
+    ElseIf Len(parts(2)) <= 2 Then
+        ' dd.mm.yy
+        d = a: m = b: y = IIf(cnum < 30, 2000 + cnum, 1900 + cnum)
+    Else
+        ' fallback
+        d = a: m = b: y = cnum
+        If y < 100 Then y = 2000 + y
+    End If
+    
+    If m < 1 Or m > 12 Then Exit Function
+    If d < 1 Or d > 31 Then Exit Function
+    
+    ExtractDMYFromDotString = True
+End Function
+-------------------------
