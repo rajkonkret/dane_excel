@@ -273,3 +273,10 @@ Private Function ExtractDMYFromDotString(ByVal s As String, ByRef d As Long, ByR
     ExtractDMYFromDotString = True
 End Function
 -------------------------
+-------------------------
+Oto plik Excel sprzedaz.xlsx Proszę o edycję w arkuszu Dane: dodaj kolumnę Sprzedaż z VAT (23%), oblicz wartość Sprzedaż * 1,23, zapisz zmieniony plik i udostępnij do pobrania
+--------------------------
+Przygotuj plik Excel z dwoma arkuszami: 1. Quiz Data - w komórkach F6:F35 umieść nazwy produktów: Widget A, Widget B, Widget C (losowo powtarzane) - w komórkach G6:G35 umieść liczby całkowite (p.: 50-500) jako wartości sprzedaży danego produktu. - Kolumny F i G mają nagłówki w wierszu 5: Produkt i Sprzedaż 2. Podsumowanie - w komórce A1 wpisz opis: Formułą do podsumowania sprzedaży w jedej komórce
+---------------------------
+
+formułą do wklejenia do excela
