@@ -288,3 +288,5 @@ formułą do wklejenia do excela
 & ZNAK(10) &
 "Widget C – " & SUMA.JEŻELI('Quiz Data'!$F$6:$F$35; "Widget C"; 'Quiz Data'!$G$6:$G$35)
 
+--------
+https://chatgpt.com/share/e/68c95861-ba48-8013-989a-67897e9ad1de
